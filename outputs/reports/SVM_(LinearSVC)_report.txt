@@ -1,0 +1,10 @@
+Model: SVM (LinearSVC)
+
+              precision    recall  f1-score   support
+
+    Good (0)       0.96      0.64      0.77     27877
+ Default (1)       0.12      0.65      0.20      2002
+
+    accuracy                           0.64     29879
+   macro avg       0.54      0.65      0.48     29879
+weighted avg       0.91      0.64      0.73     29879

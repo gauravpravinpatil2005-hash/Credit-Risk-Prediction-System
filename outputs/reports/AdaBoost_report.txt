@@ -1,0 +1,10 @@
+Model: AdaBoost
+
+              precision    recall  f1-score   support
+
+    Good (0)       0.94      0.99      0.97     27877
+ Default (1)       0.55      0.19      0.29      2002
+
+    accuracy                           0.94     29879
+   macro avg       0.75      0.59      0.63     29879
+weighted avg       0.92      0.94      0.92     29879

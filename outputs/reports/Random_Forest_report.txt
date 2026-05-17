@@ -1,0 +1,10 @@
+Model: Random Forest
+
+              precision    recall  f1-score   support
+
+    Good (0)       0.98      0.82      0.89     27877
+ Default (1)       0.23      0.74      0.35      2002
+
+    accuracy                           0.82     29879
+   macro avg       0.60      0.78      0.62     29879
+weighted avg       0.93      0.82      0.86     29879

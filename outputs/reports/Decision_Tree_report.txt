@@ -1,0 +1,10 @@
+Model: Decision Tree
+
+              precision    recall  f1-score   support
+
+    Good (0)       0.98      0.79      0.88     27877
+ Default (1)       0.21      0.76      0.33      2002
+
+    accuracy                           0.79     29879
+   macro avg       0.59      0.77      0.60     29879
+weighted avg       0.93      0.79      0.84     29879

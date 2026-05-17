@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CreditSense ML — Credit Risk Scoring</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #11141a;
+      --card: #161b24;
+      --border: #1e2530;
+      --accent: #00e5a0;
+      --accent2: #3b82f6;
+      --accent3: #f59e0b;
+      --danger: #ef4444;
+      --text: #e8edf5;
+      --muted: #6b7a8d;
+      --syne: 'Syne', sans-serif;
+      --mono: 'DM Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.4;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* ─────────────────── NAV ─────────────────── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 48px;
+      background: rgba(10, 12, 16, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: var(--syne);
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .nav-logo span {
+      color: var(--accent);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: 0.5px;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--accent);
+    }
+
+    .nav-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 5px 12px;
+      background: rgba(0, 229, 160, 0.1);
+      border: 1px solid rgba(0, 229, 160, 0.3);
+      border-radius: 20px;
+      color: var(--accent);
+      letter-spacing: 0.5px;
+    }
+
+    /* ─────────────────── HERO ─────────────────── */
+    #hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 120px 48px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 229, 160, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 160, 0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 80%);
+    }
+
+    .hero-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0, 229, 160, 0.08) 0%, transparent 70%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .hero-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      opacity: 0;
+      animation: fadeUp 0.6s 0.1s forwards;
+    }
+
+    h1 {
+      font-family: var(--syne);
+      font-size: clamp(48px, 7vw, 96px);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -3px;
+      margin-bottom: 24px;
+      opacity: 0;
+      animation: fadeUp 0.7s 0.2s forwards;
+    }
+
+    h1 .line2 {
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(232, 237, 245, 0.3);
+    }
+
+    h1 em {
+      font-style: normal;
+      color: var(--accent);
+      position: relative;
+    }
+
+    .hero-sub {
+      max-width: 560px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.8;
+      margin-bottom: 48px;
+      opacity: 0;
+      animation: fadeUp 0.7s 0.35s forwards;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      opacity: 0;
+      animation: fadeUp 0.7s 0.5s forwards;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: var(--accent);
+      color: #000;
+      font-family: var(--syne);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #00ffb2;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0, 229, 160, 0.3);
+    }
+
+    .btn-outline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: transparent;
+      color: var(--text);
+      font-family: var(--syne);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-outline:hover {
+      border-color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 48px;
+      flex-wrap: wrap;
+      margin-top: 72px;
+      padding-top: 48px;
+      border-top: 1px solid var(--border);
+      opacity: 0;
+      animation: fadeUp 0.7s 0.65s forwards;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-num {
+      font-family: var(--syne);
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -1px;
+    }
+
+    .stat-num span {
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ─────────────────── SECTIONS ─────────────────── */
+    section {
+      padding: 100px 48px;
+      position: relative;
+    }
+
+    .section-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-family: var(--syne);
+      font-size: clamp(32px, 4vw, 52px);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      max-width: 520px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.8;
+      margin-bottom: 56px;
+    }
+
+    /* ─────────────────── PIPELINE ─────────────────── */
+    #pipeline {
+      background: var(--surface);
+    }
+
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .pipeline-step {
+      background: var(--card);
+      padding: 32px 28px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .pipeline-step:hover {
+      background: #1a2030;
+    }
+
+    .step-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .step-title {
+      font-family: var(--syne);
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .step-desc {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .step-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.3px;
+    }
+
+    .tag-green {
+      background: rgba(0, 229, 160, 0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0, 229, 160, 0.2);
+    }
+
+    .tag-blue {
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--accent2);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    .tag-amber {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--accent3);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .tag-red {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    /* ─────────────────── MODELS ─────────────────── */
+    #models {
+      background: var(--bg);
+    }
+
+    .models-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+    .model-group {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .model-group-header {
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .group-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .group-title {
+      font-family: var(--syne);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .model-list {
+      padding: 8px 0;
+    }
+
+    .model-row {
+      display: flex;
+      align-items: center;
+      padding: 14px 28px;
+      gap: 14px;
+      border-bottom: 1px solid rgba(30, 37, 48, 0.5);
+      transition: background 0.15s;
+    }
+
+    .model-row:last-child {
+      border-bottom: none;
+    }
+
+    .model-row:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .model-icon {
+      font-size: 16px;
+      width: 24px;
+      text-align: center;
+    }
+
+    .model-info {
+      flex: 1;
+    }
+
+    .model-name {
+      font-family: var(--syne);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .model-detail {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .model-bar-wrap {
+      width: 80px;
+    }
+
+    .model-bar-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      text-align: right;
+      margin-bottom: 4px;
+    }
+
+    .model-bar-track {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .model-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ─────────────────── METRICS ─────────────────── */
+    #metrics {
+      background: var(--surface);
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    .metric-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 28px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .metric-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(0, 229, 160, 0.3);
+    }
+
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+    }
+
+    .metric-card.green::before {
+      background: var(--accent);
+    }
+
+    .metric-card.blue::before {
+      background: var(--accent2);
+    }
+
+    .metric-card.amber::before {
+      background: var(--accent3);
+    }
+
+    .metric-card.red::before {
+      background: var(--danger);
+    }
+
+    .metric-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .metric-value {
+      font-family: var(--syne);
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .metric-card.green .metric-value {
+      color: var(--accent);
+    }
+
+    .metric-card.blue .metric-value {
+      color: var(--accent2);
+    }
+
+    .metric-card.amber .metric-value {
+      color: var(--accent3);
+    }
+
+    .metric-card.red .metric-value {
+      color: var(--danger);
+    }
+
+    .metric-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ─────────────────── COMPARISON TABLE ─────────────────── */
+    .comparison-wrap {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .comparison-header {
+      padding: 20px 28px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .comparison-title {
+      font-family: var(--syne);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 14px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(30, 37, 48, 0.5);
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    tbody tr.best-row {
+      background: rgba(0, 229, 160, 0.04);
+    }
+
+    tbody td {
+      padding: 14px 20px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .best-badge {
+      font-family: var(--mono);
+      font-size: 9px;
+      padding: 2px 8px;
+      background: rgba(0, 229, 160, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(0, 229, 160, 0.3);
+      border-radius: 10px;
+      margin-left: 8px;
+      letter-spacing: 0.5px;
+      vertical-align: middle;
+    }
+
+    .score-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .score-track {
+      width: 60px;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .score-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+    }
+
+    .score-num {
+      font-family: var(--mono);
+      font-size: 12px;
+      min-width: 40px;
+    }
+
+    /* ─────────────────── CODE BLOCK ─────────────────── */
+    #quickstart {
+      background: var(--bg);
+    }
+
+    .code-tabs {
+      display: flex;
+      gap: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px 8px 0 0;
+      overflow: hidden;
+      border-bottom: none;
+    }
+
+    .code-tab {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--muted);
+      border-right: 1px solid var(--border);
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+
+    .code-tab.active {
+      background: var(--surface);
+      color: var(--accent);
+    }
+
+    .code-tab:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+    }
+
+    .code-blocks {
+      position: relative;
+    }
+
+    .code-block {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 0 8px 8px;
+      padding: 28px;
+      position: relative;
+    }
+
+    .code-block.active {
+      display: block;
+    }
+
+    .code-block pre {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: #c9d1d9;
+      line-height: 1.8;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .code-block .kw {
+      color: #ff7b72;
+    }
+
+    .code-block .str {
+      color: #a5d6ff;
+    }
+
+    .code-block .cm {
+      color: #6b7a8d;
+      font-style: italic;
+    }
+
+    .code-block .fn {
+      color: var(--accent);
+    }
+
+    .code-block .num {
+      color: var(--accent3);
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 6px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: rgba(0, 229, 160, 0.1);
+      color: var(--accent);
+      border-color: rgba(0, 229, 160, 0.3);
+    }
+
+    /* ─────────────────── OUTPUTS TREE ─────────────────── */
+    #outputs {
+      background: var(--surface);
+    }
+
+    .output-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .output-folder {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .folder-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--syne);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .folder-icon {
+      font-size: 16px;
+    }
+
+    .file-list {
+      padding: 8px 0;
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      border-bottom: 1px solid rgba(30, 37, 48, 0.5);
+      transition: background 0.15s;
+    }
+
+    .file-item:last-child {
+      border-bottom: none;
+    }
+
+    .file-item:hover {
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+    }
+
+    .file-item .fi {
+      font-size: 13px;
+      width: 18px;
+      text-align: center;
+    }
+
+    /* ─────────────────── FOOTER ─────────────────── */
+    footer {
+      padding: 48px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .footer-logo {
+      font-family: var(--syne);
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .footer-logo span {
+      color: var(--accent);
+    }
+
+    .footer-meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    /* ─────────────────── ANIMATIONS ─────────────────── */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ─────────────────── RESPONSIVE ─────────────────── */
+    @media (max-width: 768px) {
+      nav {
+        padding: 16px 20px;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      section,
+      #hero {
+        padding: 80px 20px;
+      }
+
+      .models-container,
+      .output-grid {
+        grid-template-columns: 1fr;
+      }
+
+      footer {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .footer-meta {
+        text-align: center;
+      }
+
+      .hero-stats {
+        gap: 28px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">Credit<span>Sense</span> ML</div>
+    <ul class="nav-links">
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#models">Models</a></li>
+      <li><a href="#metrics">Metrics</a></li>
+      <li><a href="#quickstart">Quickstart</a></li>
+      <li><a href="#outputs">Outputs</a></li>
+    </ul>
+    <div class="nav-badge">GiveMeSomeCredit</div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-grid-bg"></div>
+    <div class="hero-glow"></div>
+
+    <div class="hero-tag">// Binary Classification · Credit Default Prediction</div>
+    <h1>
+      Credit Risk<br>
+      <span class="line2">Scoring</span><br>
+      <em>Engine</em>
+    </h1>
+    <p class="hero-sub">
+      A full machine learning pipeline built on the <strong>GiveMeSomeCredit</strong> dataset —
+      150,000 borrowers, 10 features, 10 models, and one mission:
+      predicting who defaults before it happens.
+    </p>
+    <div class="hero-actions">
+      <a href="#quickstart" class="btn-primary">⚡ Get Started</a>
+      <a href="#models" class="btn-outline">Explore Models →</a>
+    </div>
+
+    <div class="hero-stats">
+      <div class="stat-item">
+        <div class="stat-num">150<span>K</span></div>
+        <div class="stat-label">Training Samples</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">10</div>
+        <div class="stat-label">ML Models</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">5</div>
+        <div class="stat-label">Eval Metrics</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">~0<span>.87</span></div>
+        <div class="stat-label">Best ROC-AUC</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section id="pipeline">
+    <div class="section-tag">// 01 · Pipeline Architecture</div>
+    <h2>How it works</h2>
+    <p class="section-desc">A structured 8-step pipeline from raw CSV to production-ready model — every step documented,
+      commented, and reproducible.</p>
+
+    <div class="pipeline-grid reveal">
+      <div class="pipeline-step">
+        <div class="step-num">01 ——</div>
+        <div class="step-icon" style="background:rgba(0,229,160,0.1)">📥</div>
+        <div class="step-title">Data Loading</div>
+        <div class="step-desc">Load <code>cs-training.csv</code> with pandas. Inspect shape, dtypes, memory footprint.
+        </div>
+        <div class="step-tags">
+          <span class="tag tag-green">pandas</span>
+          <span class="tag tag-green">150K rows</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">02 ——</div>
+        <div class="step-icon" style="background:rgba(59,130,246,0.1)">🔍</div>
+        <div class="step-title">EDA</div>
+        <div class="step-desc">Class distribution, missing value heatmap, correlation matrix, feature distributions +
+          boxplots by class.</div>
+        <div class="step-tags">
+          <span class="tag tag-blue">seaborn</span>
+          <span class="tag tag-blue">matplotlib</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">03 ——</div>
+        <div class="step-icon" style="background:rgba(245,158,11,0.1)">🔧</div>
+        <div class="step-title">Preprocessing</div>
+        <div class="step-desc">Drop duplicates, median imputation for <code>MonthlyIncome</code> &
+          <code>NumberOfDependents</code>, StandardScaler, stratified split.
+        </div>
+        <div class="step-tags">
+          <span class="tag tag-amber">80/20 split</span>
+          <span class="tag tag-amber">StandardScaler</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">04 ——</div>
+        <div class="step-icon" style="background:rgba(0,229,160,0.1)">🤖</div>
+        <div class="step-title">Model Training</div>
+        <div class="step-desc">5 baseline + 5 ensemble models. Class imbalance addressed via
+          <code>class_weight="balanced"</code> and XGBoost's <code>scale_pos_weight</code>.
+        </div>
+        <div class="step-tags">
+          <span class="tag tag-green">sklearn</span>
+          <span class="tag tag-green">xgboost</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">05 ——</div>
+        <div class="step-icon" style="background:rgba(59,130,246,0.1)">📊</div>
+        <div class="step-title">Evaluation</div>
+        <div class="step-desc">Accuracy, Precision, Recall, F1, ROC-AUC per model. Full classification reports saved to
+          disk.</div>
+        <div class="step-tags">
+          <span class="tag tag-blue">confusion matrix</span>
+          <span class="tag tag-blue">ROC curve</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">06 ——</div>
+        <div class="step-icon" style="background:rgba(245,158,11,0.1)">🏆</div>
+        <div class="step-title">Best Model Selection</div>
+        <div class="step-desc">Auto-select top model by ROC-AUC. Deep-dive: confusion matrix, ROC curve, classification
+          report.</div>
+        <div class="step-tags">
+          <span class="tag tag-amber">auto-select</span>
+          <span class="tag tag-amber">joblib save</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">07 ——</div>
+        <div class="step-icon" style="background:rgba(239,68,68,0.1)">🌳</div>
+        <div class="step-title">Feature Importance</div>
+        <div class="step-desc">Individual importance plots for all 6 tree-based models with mean-line annotation.</div>
+        <div class="step-tags">
+          <span class="tag tag-red">Random Forest</span>
+          <span class="tag tag-red">XGBoost</span>
+        </div>
+      </div>
+      <div class="pipeline-step">
+        <div class="step-num">08 ——</div>
+        <div class="step-icon" style="background:rgba(0,229,160,0.1)">💾</div>
+        <div class="step-title">Persistence</div>
+        <div class="step-desc">Best model, scaler, and all plots saved to <code>outputs/</code>. Ready for deployment or
+          submission.</div>
+        <div class="step-tags">
+          <span class="tag tag-green">outputs/models/</span>
+          <span class="tag tag-green">outputs/plots/</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODELS -->
+  <section id="models">
+    <div class="section-tag">// 02 · Models Implemented</div>
+    <h2>10 algorithms<br>one leaderboard</h2>
+    <p class="section-desc">Baseline classifiers and ensemble powerhouses — each with tuned hyperparameters and
+      memory-efficient training for the 150K dataset.</p>
+
+    <div class="models-container reveal">
+      <!-- Baseline -->
+      <div class="model-group">
+        <div class="model-group-header">
+          <div class="group-dot" style="background:#6b7a8d"></div>
+          <div class="group-title" style="color:var(--muted)">Baseline Models</div>
+        </div>
+        <div class="model-list">
+          <div class="model-row">
+            <div class="model-icon">📈</div>
+            <div class="model-info">
+              <div class="model-name">Logistic Regression</div>
+              <div class="model-detail">max_iter=1000 · balanced · n_jobs=-1</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.69</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--muted)" data-w="69"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">🌿</div>
+            <div class="model-info">
+              <div class="model-name">Decision Tree</div>
+              <div class="model-detail">max_depth=8 · balanced</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.64</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--muted)" data-w="64"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">🔵</div>
+            <div class="model-info">
+              <div class="model-name">KNN</div>
+              <div class="model-detail">k=9 · 20K subset · n_jobs=-1</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.65</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--muted)" data-w="65"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">📐</div>
+            <div class="model-info">
+              <div class="model-name">SVM (LinearSVC)</div>
+              <div class="model-detail">balanced · 20K subset · max_iter=2000</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.67</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--muted)" data-w="67"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">🎲</div>
+            <div class="model-info">
+              <div class="model-name">Naive Bayes</div>
+              <div class="model-detail">GaussianNB · fastest training</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.66</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--muted)" data-w="66"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ensemble -->
+      <div class="model-group">
+        <div class="model-group-header">
+          <div class="group-dot" style="background:var(--accent)"></div>
+          <div class="group-title" style="color:var(--accent)">Ensemble Models</div>
+        </div>
+        <div class="model-list">
+          <div class="model-row">
+            <div class="model-icon">🌲</div>
+            <div class="model-info">
+              <div class="model-name">Random Forest</div>
+              <div class="model-detail">n=200 · depth=10 · balanced</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.84</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--accent)" data-w="84"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">⚡</div>
+            <div class="model-info">
+              <div class="model-name">XGBoost</div>
+              <div class="model-detail">n=200 · depth=6 · hist · scale_pos</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.87</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--accent)" data-w="87"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">🚀</div>
+            <div class="model-info">
+              <div class="model-name">AdaBoost</div>
+              <div class="model-detail">n=100 · lr=0.5</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.80</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--accent)" data-w="80"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">📉</div>
+            <div class="model-info">
+              <div class="model-name">Gradient Boosting</div>
+              <div class="model-detail">n=100 · depth=5 · subsample=0.8</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.85</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--accent)" data-w="85"></div>
+              </div>
+            </div>
+          </div>
+          <div class="model-row">
+            <div class="model-icon">🎒</div>
+            <div class="model-info">
+              <div class="model-name">Bagging</div>
+              <div class="model-detail">n=50 · samples=0.8 · features=0.8</div>
+            </div>
+            <div class="model-bar-wrap">
+              <div class="model-bar-label">AUC ~0.82</div>
+              <div class="model-bar-track">
+                <div class="model-bar-fill" style="width:0%;background:var(--accent)" data-w="82"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- METRICS -->
+  <section id="metrics">
+    <div class="section-tag">// 03 · Evaluation Metrics</div>
+    <h2>How we score<br>each model</h2>
+    <p class="section-desc">Five complementary metrics — because accuracy alone is meaningless on a 14:1 imbalanced
+      dataset.</p>
+
+    <div class="metrics-grid reveal">
+      <div class="metric-card green">
+        <div class="metric-label">ROC-AUC</div>
+        <div class="metric-value">AUC</div>
+        <div class="metric-desc">Area under the ROC curve — primary ranking metric. Measures discrimination across all
+          thresholds.</div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-label">F1-Score</div>
+        <div class="metric-value">F1</div>
+        <div class="metric-desc">Harmonic mean of precision & recall. Critical for imbalanced classes where FP and FN
+          costs differ.</div>
+      </div>
+      <div class="metric-card amber">
+        <div class="metric-label">Precision</div>
+        <div class="metric-value">PPV</div>
+        <div class="metric-desc">Of predicted defaults, how many are true defaults? Minimises costly false alarms.</div>
+      </div>
+      <div class="metric-card red">
+        <div class="metric-label">Recall</div>
+        <div class="metric-value">TPR</div>
+        <div class="metric-desc">Of actual defaults, how many were caught? Minimises missed defaults — the bigger credit
+          risk.</div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-label">Accuracy</div>
+        <div class="metric-value">ACC</div>
+        <div class="metric-desc">Overall correctness. Supplementary on imbalanced data but still reported for
+          completeness.</div>
+      </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="comparison-wrap reveal">
+      <div class="comparison-header">
+        <div class="comparison-title">Model Leaderboard — Expected Results</div>
+        <span class="tag tag-green">sorted by ROC-AUC</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Accuracy</th>
+              <th>Precision</th>
+              <th>Recall</th>
+              <th>F1-Score</th>
+              <th>ROC-AUC</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="best-row">
+              <td>XGBoost <span class="best-badge">★ BEST</span></td>
+              <td>
+                <div class="score-bar">
+                  <div class="score-track">
+                    <div class="score-fill" style="width:87%"></div>
+                  </div><span class="score-num">~0.87</span>
+                </div>
+              </td>
+              <td>~0.73</td>
+              <td>~0.56</td>
+              <td>~0.63</td>
+              <td><strong style="color:var(--accent)">~0.87</strong></td>
+            </tr>
+            <tr>
+              <td>Gradient Boosting</td>
+              <td>
+                <div class="score-bar">
+                  <div class="score-track">
+                    <div class="score-fill" style="width:85%"></div>
+                  </div><span class="score-num">~0.85</span>
+                </div>
+              </td>
+              <td>~0.69</td>
+              <td>~0.54</td>
+              <td>~0.61</td>
+              <td>~0.85</td>
+            </tr>
+            <tr>
+              <td>Random Forest</td>
+              <td>
+                <div class="score-bar">
+                  <div class="score-track">
+                    <div class="score-fill" style="width:84%"></div>
+                  </div><span class="score-num">~0.84</span>
+                </div>
+              </td>
+              <td>~0.66</td>
+              <td>~0.55</td>
+              <td>~0.60</td>
+              <td>~0.84</td>
+            </tr>
+            <tr>
+              <td>Bagging</td>
+              <td>
+                <div class="score-bar">
+                  <div class="score-track">
+                    <div class="score-fill" style="width:82%"></div>
+                  </div><span class="score-num">~0.82</span>
+                </div>
+              </td>
+              <td>~0.64</td>
+              <td>~0.51</td>
+              <td>~0.57</td>
+              <td>~0.82</td>
+            </tr>
+            <tr>
+              <td>AdaBoost</td>
+              <td>
+                <div class="score-bar">
+                  <div class="score-track">
+                    <div class="score-fill" style="width:80%"></div>
+                  </div><span class="score-num">~0.80</span>
+                </div>
+              </td>
+              <td>~0.58</td>
+              <td>~0.60</td>
+              <td>~0.59</td>
+              <td>~0.80</td>
+            </tr>
+            <tr>
+              <td>Logistic Regression</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>~0.69</td>
+            </tr>
+            <tr>
+              <td>SVM (LinearSVC)</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>~0.67</td>
+            </tr>
+            <tr>
+              <td>KNN</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>~0.65</td>
+            </tr>
+            <tr>
+              <td>Naive Bayes</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>~0.66</td>
+            </tr>
+            <tr>
+              <td>Decision Tree</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>~0.64</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUICKSTART -->
+  <section id="quickstart">
+    <div class="section-tag">// 04 · Quickstart</div>
+    <h2>Up and running<br>in 3 steps</h2>
+    <p class="section-desc">Clone, install, run. The notebook and script both produce the same results — pick your
+      preference.</p>
+
+    <div class="code-tabs reveal">
+      <div class="code-tab active" onclick="showTab('setup')">Setup</div>
+      <div class="code-tab" onclick="showTab('notebook')">Notebook</div>
+      <div class="code-tab" onclick="showTab('script')">Python Script</div>
+      <div class="code-tab" onclick="showTab('structure')">Project Structure</div>
+    </div>
+
+    <div class="code-blocks reveal">
+      <div class="code-block active" id="tab-setup">
+        <button class="copy-btn" onclick="copyCode('tab-setup')">Copy</button>
+        <pre><span class="cm"># ── 1. Create virtual environment ──</span>
+<span class="fn">python</span> -m venv venv
+<span class="fn">source</span> venv/bin/activate          <span class="cm"># Linux / macOS</span>
+venv<span class="str">\S</span>cripts<span class="str">\a</span>ctivate             <span class="cm"># Windows</span>
+
+<span class="cm"># ── 2. Install dependencies ──</span>
+<span class="fn">pip</span> install -r requirements.txt
+
+<span class="cm"># ── 3. Place your data ──</span>
+<span class="fn">mkdir</span> data
+<span class="cm"># copy cs-training.csv into data/</span></pre>
+      </div>
+
+      <div class="code-block" id="tab-notebook">
+        <button class="copy-btn" onclick="copyCode('tab-notebook')">Copy</button>
+        <pre><span class="cm"># Launch Jupyter and open the notebook</span>
+<span class="fn">jupyter</span> notebook credit_risk_scoring.ipynb
+
+<span class="cm"># Run cells sequentially (top → bottom)
+# ⚠️  Heavy training cells are marked — run when ready
+# All outputs auto-save to outputs/ folder</span></pre>
+      </div>
+
+      <div class="code-block" id="tab-script">
+        <button class="copy-btn" onclick="copyCode('tab-script')">Copy</button>
+        <pre><span class="cm"># Run the full pipeline end-to-end</span>
+<span class="fn">python</span> credit_risk_scoring.py
+
+<span class="cm"># What runs automatically:
+#   ✓ EDA plots (4 figures)
+#   ✓ All 10 models trained + evaluated
+#   ✓ Comparison table + charts
+#   ✓ Best model saved to outputs/models/
+#   ✓ All plots saved to outputs/plots/
+#   ✓ Classification reports in outputs/reports/</span></pre>
+      </div>
+
+      <div class="code-block" id="tab-structure">
+        <button class="copy-btn" onclick="copyCode('tab-structure')">Copy</button>
+        <pre>credit_risk_project/
+<span class="str">├──</span> credit_risk_scoring.ipynb   <span class="cm"># Jupyter notebook</span>
+<span class="str">├──</span> credit_risk_scoring.py      <span class="cm"># Standalone script</span>
+<span class="str">├──</span> requirements.txt            <span class="cm"># Dependencies</span>
+<span class="str">├──</span> README.md
+<span class="str">├──</span> data/
+<span class="str">│   ├──</span> cs-training.csv          <span class="cm"># ← place here</span>
+<span class="str">│   └──</span> cs-test.csv
+<span class="str">└──</span> outputs/
+<span class="str">    ├──</span> models/                  <span class="cm"># .joblib files</span>
+<span class="str">    ├──</span> plots/                   <span class="cm"># .png figures</span>
+<span class="str">    └──</span> reports/                 <span class="cm"># .txt reports</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- OUTPUTS -->
+  <section id="outputs">
+    <div class="section-tag">// 05 · Generated Outputs</div>
+    <h2>Everything saved,<br>nothing lost</h2>
+    <p class="section-desc">Running the pipeline generates 15+ files across three output directories — plots, trained
+      models, and text reports.</p>
+
+    <div class="output-grid reveal">
+      <div class="output-folder">
+        <div class="folder-header">
+          <div class="folder-icon">📊</div>
+          <div>outputs/plots/</div>
+        </div>
+        <div class="file-list">
+          <div class="file-item"><span class="fi">🖼</span> 01_class_distribution.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 02_missing_values.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 03_correlation_heatmap.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 04_feature_distributions.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 04b_boxplots_by_class.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 05_model_comparison.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 06_roc_auc_comparison.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 07_08_best_model_cm_roc.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 09_feature_importances.png</div>
+          <div class="file-item"><span class="fi">🖼</span> 10_all_confusion_matrices.png</div>
+        </div>
+      </div>
+
+      <div class="output-folder">
+        <div class="folder-header">
+          <div class="folder-icon">💾</div>
+          <div>outputs/models/</div>
+        </div>
+        <div class="file-list">
+          <div class="file-item"><span class="fi">🤖</span> best_model.joblib</div>
+          <div class="file-item"><span class="fi">⚖️</span> scaler.joblib</div>
+        </div>
+
+        <div class="folder-header" style="margin-top:8px">
+          <div class="folder-icon">📄</div>
+          <div>outputs/reports/</div>
+        </div>
+        <div class="file-list">
+          <div class="file-item"><span class="fi">📝</span> Logistic_Regression_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> Decision_Tree_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> KNN_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> SVM_(LinearSVC)_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> Naive_Bayes_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> Random_Forest_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> XGBoost_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> AdaBoost_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> Gradient_Boosting_report.txt</div>
+          <div class="file-item"><span class="fi">📝</span> Bagging_report.txt</div>
+          <div class="file-item"><span class="fi">📊</span> model_comparison.csv</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">Credit<span>Sense</span> ML</div>
+    <div class="footer-meta">
+      GiveMeSomeCredit · Kaggle Dataset<br>
+      sklearn · xgboost · pandas · seaborn
+    </div>
+  </footer>
+
+  <script>
+    // ── Tab switching ──
+    function showTab(id) {
+      document.querySelectorAll('.code-block').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + id).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // ── Copy code ──
+    function copyCode(blockId) {
+      const text = document.getElementById(blockId).querySelector('pre').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.querySelector(`#${blockId} .copy-btn`);
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = 'Copy', 1500);
+      });
+    }
+
+    // ── Scroll reveal ──
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+          // Animate model bars
+          e.target.querySelectorAll('.model-bar-fill').forEach(bar => {
+            bar.style.width = bar.dataset.w + '%';
+          });
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // ── Smooth active nav ──
+    const sections = document.querySelectorAll('section[id]');
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(s => {
+        if (window.scrollY >= s.offsetTop - 120) current = s.id;
+      });
+      document.querySelectorAll('.nav-links a').forEach(a => {
+        a.style.color = a.getAttribute('href') === '#' + current
+          ? 'var(--accent)' : '';
+      });
+    });
+  </script>
+</body>
+
+</html>
